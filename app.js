@@ -128,34 +128,62 @@
   async function loadPlans(){ state.plans=await q(db.from('plans').select('*,plan_exercises(*,exercises(*))').eq('user_id',state.user.id).order('created_at'))||[]; renderPlans(); renderNextPlan(); }
   function renderNextPlan(){
     const p=state.plans[0];
-    $('#nextPlanCard').innerHTML=p?`<div class="plan-head"><div><h3>${esc(p.name)}</h3><small class="muted">${esc(p.description||'')}</small></div><span class="tag">${p.plan_exercises?.length||0} ćw.</span></div><div class="tags">${(p.plan_exercises||[]).slice(0,5).map(x=>`<span class="tag">${esc(x.exercises?.name||'')}</span>`).join('')}</div><button class="primary full" onclick="Calis.startPlan('${p.id}')">Start</button>`:'<p class="muted">Nie masz jeszcze planu. Dodaj 3 gotowe albo stwórz własny.</p>';
+    $('#nextPlanCard').innerHTML=p?`<div class="plan-head"><div><h3>${esc(p.name)}</h3><small class="muted">${esc(p.description||'')}</small></div><span class="tag">${p.plan_exercises?.length||0} ćw.</span></div><div class="tags">${(p.plan_exercises||[]).slice(0,5).map(x=>`<span class="tag">${esc(x.exercises?.name||'')}</span>`).join('')}</div><button class="primary full" onclick="Calis.startPlan('${p.id}')">Start</button>`:'<p class="muted">Nie masz jeszcze planu. Wybierz gotowy program albo stwórz własny.</p>';
   }
   function renderPlans(){
     $('#plansList').innerHTML=state.plans.length?state.plans.map(p=>`<div class="card plan-card"><div class="plan-head"><div><h3>${esc(p.name)}</h3><small class="muted">${esc(p.description||'')}</small></div><span class="tag">${p.plan_exercises?.length||0} ćw.</span></div><div class="tags">${(p.plan_exercises||[]).slice(0,6).map(x=>`<span class="tag">${esc(x.exercises?.name||'')} • ${x.sets}×${x.rep_min||''}${x.rep_max?'–'+x.rep_max:''}</span>`).join('')}</div><div class="plan-actions"><button class="primary" onclick="Calis.startPlan('${p.id}')">Start</button><button class="secondary" onclick="Calis.editPlan('${p.id}')">Edytuj</button><button class="danger ghost" onclick="Calis.deletePlan('${p.id}')">✕</button></div></div>`).join(''):'<div class="empty"><div>▦</div><h3>Brak planów</h3><p>Stwórz własny plan z pełnej biblioteki ćwiczeń.</p></div>';
   }
   $('#createPlanBtn').addEventListener('click',()=>openPlanEditor());
-  $('#installTemplatesBtn').addEventListener('click',installAthleticTemplates);
+  $('#installTemplatesBtn').addEventListener('click',openTemplateLibrary);
+  $('#templateModalClose').addEventListener('click',()=>$('#templateModal').close());
 
-  const TEMPLATES=[
-    {name:'Calis Athletic A',description:'Pull + Push + Legs',items:[[['podciaganie-nachwyt-sredni-masa-ciaa','podciaganie-nachwyt-sredni-masa-ciala'],4,4,8,120],['bar-dip',4,5,10,120],['przysiad-back-squat-high-bar',3,6,10,150],[['wiosowanie-maszyna-chest-supported-standard','wioslowanie-maszyna-chest-supported-standard'],3,8,12,100],['unoszenie-bokiem-hantle-oburacz',3,12,20,60],['hanging-leg-raise',3,8,15,75],[['ty-barkow-face-pull-linka','tyl-barkow-face-pull-linka'],2,15,20,60]]},
-    {name:'Calis Athletic B',description:'Shoulders + Pull + Posterior',items:[[['podciaganie-podchwyt-masa-ciaa','podciaganie-podchwyt-masa-ciala'],4,5,10,120],[['wyciskanie-nad-gowe-hantle-siedzac','wyciskanie-nad-glowe-hantle-siedzac'],3,6,10,120],['rdl-sztanga',3,6,10,150],['pompki-klasyczne',3,8,15,75],['sciaganie-drazka-wyciagu-waski-neutralny',3,8,12,100],['unoszenie-bokiem-hantle-oburacz',3,12,20,60],['ab-wheel-rollout',3,6,12,90],['farmer-carry',2,null,null,90]]},
-    {name:'Calis Athletic C',description:'Skills + Athletic Full Body',items:[['muscle-up-na-drazku',4,1,5,150],['elevated-pike-push-up',4,6,12,90],['bulgarian-split-squat-hantle',3,8,12,90],['podciaganie-neutralny-z-guma',3,8,12,90],['l-sit',4,null,null,90],['hollow-body-hold',3,null,null,60],['unoszenie-bokiem-hantle-oburacz',3,12,20,60]]}
+  const PROGRAMS=[
+    {id:'fbw',icon:'⚡',name:'Full Body Workout',schedule:'3 dni w tygodniu',level:'Każdy poziom',description:'Całe ciało na każdym treningu. Dobry wybór na start i przy ograniczonej liczbie dni.',plans:[
+      {name:'FBW — Trening A',description:'Całe ciało • nacisk na przysiad i klatkę',items:[['przysiad-back-squat-high-bar',4,5,8,150],[['wyciskanie-sztanga-awka-paska','wyciskanie-sztanga-lawka-plaska'],4,6,10,120],['wiosowanie-sztanga-nachwytem-standard',4,6,10,120],[['wyciskanie-nad-gowe-sztanga-stojac','wyciskanie-nad-glowe-sztanga-stojac'],3,8,12,100],['uginanie-na-biceps-hantle-naprzemiennie',3,10,15,60],['plank',3,null,null,60]]},
+      {name:'FBW — Trening B',description:'Całe ciało • tył uda i plecy',items:[['rdl-sztanga',4,6,10,150],[['wyciskanie-hantle-awka-skos-dodatni-30','wyciskanie-hantle-lawka-skos-dodatni-30'],4,8,12,100],['sciaganie-drazka-wyciagu-waski-neutralny',4,8,12,100],['bulgarian-split-squat-hantle',3,8,12,90],['unoszenie-bokiem-hantle-oburacz',3,12,20,60],['hanging-leg-raise',3,8,15,75]]},
+      {name:'FBW — Trening C',description:'Całe ciało • pośladki i ruchy z masą ciała',items:[['leg-press-leg-press-45-szeroko',4,10,15,120],['bar-dip',4,6,12,100],['wiosowanie-hantle-jednoracz-standard',4,8,12,90],['hip-thrust-sztanga',3,8,12,120],[['ty-barkow-face-pull-linka','tyl-barkow-face-pull-linka'],3,12,20,60],['ab-wheel-rollout',3,6,12,75]]}
+    ]},
+    {id:'upper-lower',icon:'↕️',name:'Góra / Dół',schedule:'4 dni w tygodniu',level:'Średniozaawansowany',description:'Dwa treningi góry i dwa treningi dołu. Większa objętość z dobrym czasem na regenerację.',plans:[
+      {name:'Góra / Dół — Góra A',description:'Góra ciała • siła bazowa',items:[[['wyciskanie-sztanga-awka-paska','wyciskanie-sztanga-lawka-plaska'],4,5,8,150],['wiosowanie-sztanga-nachwytem-standard',4,6,10,120],[['wyciskanie-nad-gowe-sztanga-stojac','wyciskanie-nad-glowe-sztanga-stojac'],3,6,10,120],['sciaganie-drazka-wyciagu-sredni-nachwyt',3,8,12,90],['unoszenie-bokiem-hantle-oburacz',3,12,20,60],['uginanie-na-biceps-sztanga-ez',3,8,12,75],['triceps-pushdown-lina',3,10,15,60]]},
+      {name:'Góra / Dół — Dół A',description:'Nogi • dominacja przysiadu',items:[['przysiad-back-squat-high-bar',4,5,8,150],['rdl-sztanga',4,6,10,150],['leg-curl-lezac',3,10,15,75],['bulgarian-split-squat-hantle',3,8,12,90],['calf-raise-leg-press',4,10,20,60],['plank',3,null,null,60]]},
+      {name:'Góra / Dół — Góra B',description:'Góra ciała • hipertrofia',items:[[['wyciskanie-hantle-awka-skos-dodatni-30','wyciskanie-hantle-lawka-skos-dodatni-30'],4,8,12,100],[['podciaganie-nachwyt-sredni-masa-ciaa','podciaganie-nachwyt-sredni-masa-ciala'],4,5,10,120],[['wyciskanie-nad-gowe-hantle-siedzac','wyciskanie-nad-glowe-hantle-siedzac'],3,8,12,100],['wiosowanie-wyciag-siedzac-wasko-standard',3,8,12,90],['rozpietki-na-wyciagu-brama-srodkowa-oburacz',3,12,15,60],['uginanie-na-biceps-hammer-curl',3,10,15,60],['triceps-overhead-lina',3,10,15,60]]},
+      {name:'Góra / Dół — Dół B',description:'Nogi • dominacja biodra',items:[['martwy-ciag-klasyczny',3,4,6,180],['leg-press-leg-press-45-wasko',4,8,15,120],['hip-thrust-sztanga',4,8,12,120],['leg-curl-siedzac',3,10,15,75],['wykroki-chodzone-hantle',3,10,14,90],['calf-raise-leg-press',4,12,20,60],['hanging-leg-raise',3,8,15,75]]}
+    ]},
+    {id:'ppl',icon:'🔁',name:'Push / Pull / Legs',schedule:'3–6 dni w tygodniu',level:'Średniozaawansowany',description:'Osobny dzień wypychania, przyciągania i nóg. Przy sześciu dniach powtarzaj cykl dwa razy.',plans:[
+      {name:'PPL — Push',description:'Klatka • barki • triceps',items:[[['wyciskanie-sztanga-awka-paska','wyciskanie-sztanga-lawka-plaska'],4,5,8,150],[['wyciskanie-hantle-awka-skos-dodatni-30','wyciskanie-hantle-lawka-skos-dodatni-30'],3,8,12,100],[['wyciskanie-nad-gowe-hantle-siedzac','wyciskanie-nad-glowe-hantle-siedzac'],3,6,10,120],['unoszenie-bokiem-hantle-oburacz',4,12,20,60],['triceps-pushdown-lina',3,10,15,60],['triceps-overhead-lina',3,10,15,60]]},
+      {name:'PPL — Pull',description:'Plecy • tył barków • biceps',items:[[['podciaganie-nachwyt-sredni-masa-ciaa','podciaganie-nachwyt-sredni-masa-ciala'],4,5,10,120],['wiosowanie-sztanga-nachwytem-standard',4,6,10,120],['sciaganie-drazka-wyciagu-waski-neutralny',3,8,12,90],['wiosowanie-maszyna-chest-supported-standard',3,8,12,90],[['ty-barkow-face-pull-linka','tyl-barkow-face-pull-linka'],3,12,20,60],['uginanie-na-biceps-sztanga-ez',3,8,12,75],['uginanie-na-biceps-hammer-curl',3,10,15,60]]},
+      {name:'PPL — Legs',description:'Czworogłowe • tył uda • pośladki • łydki',items:[['przysiad-back-squat-high-bar',4,5,8,150],['rdl-sztanga',4,6,10,150],['leg-press-leg-press-45-szeroko',3,10,15,120],['leg-curl-lezac',3,10,15,75],['bulgarian-split-squat-hantle',3,8,12,90],['calf-raise-leg-press',4,12,20,60],['hanging-leg-raise',3,8,15,75]]}
+    ]},
+    {id:'split',icon:'🎯',name:'Split mięśniowy',schedule:'5 dni w tygodniu',level:'Zaawansowany',description:'Każdy trening koncentruje się na wybranej partii mięśniowej i jej dokładnym przepracowaniu.',plans:[
+      {name:'Split — Klatka',description:'Klatka piersiowa',items:[[['wyciskanie-sztanga-awka-paska','wyciskanie-sztanga-lawka-plaska'],4,5,8,150],[['wyciskanie-hantle-awka-skos-dodatni-30','wyciskanie-hantle-lawka-skos-dodatni-30'],4,8,12,100],['bar-dip',3,6,12,100],['rozpietki-na-wyciagu-brama-srodkowa-oburacz',3,10,15,60],['pompki-szerokie',3,10,20,60]]},
+      {name:'Split — Plecy',description:'Najszerszy • środek pleców • tył barków',items:[[['podciaganie-nachwyt-sredni-masa-ciaa','podciaganie-nachwyt-sredni-masa-ciala'],4,5,10,120],['wiosowanie-sztanga-nachwytem-standard',4,6,10,120],['sciaganie-drazka-wyciagu-szeroki-nachwyt',3,8,12,90],['wiosowanie-hantle-jednoracz-standard',3,8,12,90],['straight-arm-pulldown-linka',3,10,15,60],[['ty-barkow-face-pull-linka','tyl-barkow-face-pull-linka'],3,12,20,60]]},
+      {name:'Split — Nogi',description:'Czworogłowe • tył uda • pośladki • łydki',items:[['przysiad-back-squat-high-bar',4,5,8,150],['rdl-sztanga',4,6,10,150],['leg-press-leg-press-45-wasko',4,10,15,120],['leg-curl-siedzac',3,10,15,75],['bulgarian-split-squat-hantle',3,8,12,90],['hip-thrust-sztanga',3,8,12,120],['calf-raise-leg-press',4,12,20,60]]},
+      {name:'Split — Barki i brzuch',description:'Przód • bok • tył barków • core',items:[[['wyciskanie-nad-gowe-sztanga-stojac','wyciskanie-nad-glowe-sztanga-stojac'],4,5,8,150],['unoszenie-bokiem-hantle-oburacz',4,12,20,60],[['ty-barkow-face-pull-linka','tyl-barkow-face-pull-linka'],4,12,20,60],['hanging-leg-raise',3,8,15,75],['ab-wheel-rollout',3,6,12,75],['side-plank',3,null,null,60]]},
+      {name:'Split — Ramiona',description:'Biceps • triceps',items:[['uginanie-na-biceps-sztanga-ez',4,8,12,75],['triceps-close-grip-bench-press',4,6,10,120],['uginanie-na-biceps-hantle-na-skosie',3,10,15,60],['triceps-overhead-lina',3,10,15,60],['uginanie-na-biceps-hammer-curl',3,10,15,60],['triceps-pushdown-lina',3,10,15,60]]}
+    ]},
+    {id:'calis',icon:'🤸',name:'Kalistenika Athletic',schedule:'3 dni w tygodniu',level:'Każdy poziom',description:'Siła z masą ciała, podstawowe skille i uzupełnienie nóg oraz obręczy barkowej.',plans:[
+      {name:'Calis Athletic A',description:'Pull • Push • Legs',items:[[['podciaganie-nachwyt-sredni-masa-ciaa','podciaganie-nachwyt-sredni-masa-ciala'],4,4,8,120],['bar-dip',4,5,10,120],['przysiad-back-squat-high-bar',3,6,10,150],['wiosowanie-maszyna-chest-supported-standard',3,8,12,100],['unoszenie-bokiem-hantle-oburacz',3,12,20,60],['hanging-leg-raise',3,8,15,75]]},
+      {name:'Calis Athletic B',description:'Barki • plecy • tył ciała',items:[[['podciaganie-podchwyt-masa-ciaa','podciaganie-podchwyt-masa-ciala'],4,5,10,120],[['wyciskanie-nad-gowe-hantle-siedzac','wyciskanie-nad-glowe-hantle-siedzac'],3,6,10,120],['rdl-sztanga',3,6,10,150],['pompki-klasyczne',3,8,15,75],['sciaganie-drazka-wyciagu-waski-neutralny',3,8,12,100],['ab-wheel-rollout',3,6,12,90]]},
+      {name:'Calis Athletic C',description:'Skille • całe ciało',items:[['muscle-up-na-drazku',4,1,5,150],['elevated-pike-push-up',4,6,12,90],['bulgarian-split-squat-hantle',3,8,12,90],['podciaganie-neutralny-z-guma',3,8,12,90],['l-sit',4,null,null,90],['hollow-body-hold',3,null,null,60]]}
+    ]}
   ];
-  async function installAthleticTemplates(){
-    if(!confirm('Dodać 3 gotowe plany Calis Athletic do Twojego konta?')) return;
-    const button=$('#installTemplatesBtn'),originalText=button.textContent;button.disabled=true;button.textContent='Dodawanie planów…';let saved=0;
+  function openTemplateLibrary(){renderTemplateLibrary();$('#templateModal').showModal();}
+  function renderTemplateLibrary(){const box=$('#templatePrograms');box.innerHTML=PROGRAMS.map(p=>`<div class="card"><div class="plan-head"><div><h3>${p.icon} ${esc(p.name)}</h3><small class="muted">${esc(p.description)}</small></div><span class="tag">${p.plans.length} plany</span></div><div class="tags"><span class="tag">${esc(p.schedule)}</span><span class="tag">${esc(p.level)}</span></div><button type="button" class="primary full" data-install-program="${p.id}" onclick="Calis.installProgram('${p.id}')">Dodaj ten program</button></div>`).join('');}
+  async function installProgram(id){
+    const program=PROGRAMS.find(p=>p.id===id),button=$(`[data-install-program="${id}"]`);if(!program||!button)return;const originalText=button.textContent;button.disabled=true;button.textContent='Dodawanie…';let saved=0,skipped=0;
     try{
       await loadPlans();
-      for(const t of TEMPLATES){
-        const resolved=t.items.map(([key,sets,rmin,rmax,rest],sort_order)=>{const slugs=Array.isArray(key)?key:[key],ex=state.exercises.find(e=>slugs.includes(e.slug));return ex?{exercise_id:ex.id,sort_order,sets,rep_min:rmin,rep_max:rmax,rest_sec:rest}:null;});
-        if(resolved.some(x=>!x)){console.error('Brak ćwiczeń dla planu',t.name,t.items.filter((_,i)=>!resolved[i]).map(x=>x[0]));throw new Error(`Nie udało się przygotować planu ${t.name}. Spróbuj ponownie później.`);}
-        let plan=state.plans.find(p=>p.name===t.name),created=false;
-        if(!plan){plan=await q(db.from('plans').insert({user_id:state.user.id,name:t.name,description:t.description}).select().single());created=true;}
-        try{if(!created)await q(db.from('plan_exercises').delete().eq('plan_id',plan.id));await q(db.from('plan_exercises').insert(resolved.map(x=>({...x,plan_id:plan.id}))));saved++;}
-        catch(error){if(created){try{await q(db.from('plans').delete().eq('id',plan.id),true);}catch{}}throw error;}
+      const prepared=program.plans.map(t=>({template:t,resolved:t.items.map(([key,sets,rmin,rmax,rest],sort_order)=>{const slugs=Array.isArray(key)?key:[key],ex=state.exercises.find(e=>slugs.includes(e.slug));return ex?{exercise_id:ex.id,sort_order,sets,rep_min:rmin,rep_max:rmax,rest_sec:rest}:null;})}));
+      const broken=prepared.find(x=>x.resolved.some(item=>!item));if(broken)throw new Error(`Nie udało się przygotować planu ${broken.template.name}.`);
+      for(const {template,resolved} of prepared){
+        if(state.plans.some(p=>p.name===template.name)){skipped++;continue;}
+        const plan=await q(db.from('plans').insert({user_id:state.user.id,name:template.name,description:template.description}).select().single());
+        try{await q(db.from('plan_exercises').insert(resolved.map(x=>({...x,plan_id:plan.id}))));saved++;}
+        catch(error){try{await q(db.from('plans').delete().eq('id',plan.id),true);}catch{}throw error;}
       }
-      toast(`Gotowe • zapisano ${saved} plany`);
-    }catch(error){toast(error.message||'Nie udało się dodać planów');}
+      toast(saved?`Dodano ${saved} planów${skipped?` • pominięto ${skipped} istniejących`:''}`:'Ten program jest już dodany');
+      if(saved)$('#templateModal').close();
+    }catch(error){toast(error.message||'Nie udało się dodać programu');}
     finally{try{await loadPlans();}finally{button.disabled=false;button.textContent=originalText;}}
   }
 
@@ -336,7 +364,7 @@
   window.addEventListener('focus',()=>{if(state.restEndsAt)tickRest();});
 
   // Global functions for inline event handlers
-  window.Calis={startPlan,editPlan:id=>openPlanEditor(state.plans.find(p=>p.id===id)),deletePlan,addPlanExercise,removePlanItem:i=>{state.selectedPlanExercises.splice(i,1);renderPlanModalItems();renderPlanExerciseList();},planField:(i,k,v)=>state.selectedPlanExercises[i][k]=v,setVal,doneSet,addSet,startRest,setExerciseCategory,pickExercise,addFood,deleteMeal,toggleSupplement,deleteSupplement,calendarDay,deleteEvent,editSkill};
+  window.Calis={startPlan,editPlan:id=>openPlanEditor(state.plans.find(p=>p.id===id)),deletePlan,addPlanExercise,removePlanItem:i=>{state.selectedPlanExercises.splice(i,1);renderPlanModalItems();renderPlanExerciseList();},planField:(i,k,v)=>state.selectedPlanExercises[i][k]=v,installProgram,setVal,doneSet,addSet,startRest,setExerciseCategory,pickExercise,addFood,deleteMeal,toggleSupplement,deleteSupplement,calendarDay,deleteEvent,editSkill};
 
   // Initial auth session
   db.auth.getSession().then(({data})=>setSession(data.session));

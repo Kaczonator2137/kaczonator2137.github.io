@@ -81,7 +81,7 @@
 
     <section class="screen" data-screen="plans">
       <div class="section-title"><div><small>PROGRAM</small><h2>Twoje plany</h2></div><button id="createPlanBtn" class="primary compact">+ Plan</button></div>
-      <button id="installTemplatesBtn" class="template-banner">✨ Dodaj 3 gotowe plany Calis Athletic</button>
+      <button id="installTemplatesBtn" class="template-banner">✨ Wybierz gotowy program treningowy</button>
       <div id="plansList"></div>
     </section>
 
@@ -144,6 +144,7 @@
 
 <dialog id="modal" class="modal"><form method="dialog" id="modalForm"><div class="modal-head"><h3 id="modalTitle">Formularz</h3><button value="cancel" class="icon">✕</button></div><div id="modalBody"></div><button id="modalSave" value="default" class="primary full">Zapisz</button></form></dialog>
 <dialog id="pickerModal" class="modal"><form method="dialog"><div class="modal-head"><h3>Wybierz ćwiczenie</h3><button value="cancel" class="icon">✕</button></div><input id="pickerSearch" placeholder="Szukaj ćwiczenia…"><div id="pickerResults" class="list"></div></form></dialog>
+<dialog id="templateModal" class="modal"><div class="modal-head"><div><small class="muted">GOTOWE ZESTAWY</small><h3>Wybierz program</h3></div><button id="templateModalClose" class="icon">✕</button></div><p class="muted">Dodaj cały układ treningów do swojego konta. Każdy plan możesz później dowolnie edytować.</p><div id="templatePrograms"></div></dialog>
 <dialog id="notificationPrompt" class="modal">
   <div class="notification-bell">🔔</div>
   <h2 id="notificationPromptTitle">Włącz powiadomienia</h2>
