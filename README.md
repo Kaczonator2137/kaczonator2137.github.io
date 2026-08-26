@@ -1,33 +1,24 @@
-# CalisLevel Pro
+# CalisLevel
 
-Pełnoprawna PWA pod iPhone inspirowana aplikacjami gamifikującymi siłownię.
+Darmowa PWA do treningu, kalisteniki, odżywiania, suplementacji i rywalizacji ze znajomymi.
 
-## Funkcje
-- XP, poziomy i rangi: Bronze → Silver → Gold → Platinum → Diamond → Master → Legend
-- Domyślne plany A/B pod sylwetkę kalisteniczną
-- Tworzenie, kopiowanie i edycja własnych planów
-- Biblioteka ćwiczeń
-- Aktywny trening z seriami, kg, powtórzeniami, RPE i timerem przerw
-- Automatyczne rekordy osobiste i szacowane 1RM dla ćwiczeń z ciężarem
-- Historia treningów, objętość, tygodniowy cel i streak
-- Pomiary: masa, pas, klatka, ramię
-- Wykres masy i regularności treningów
-- Zdjęcia progresowe przechowywane lokalnie w IndexedDB
-- Drzewka: podciąganie, dipy, L-sit, handstand, muscle-up, front lever
-- Achievementy
-- Eksport/import JSON
-- Tryb offline po pierwszym uruchomieniu
+## Główne moduły
+- **Konta i synchronizacja** — Supabase Auth + PostgreSQL.
+- **Trening** — plany własne, aktywna sesja, serie, kg, powtórzenia, RPE, timer przerw.
+- **3 plany Calis Athletic** — opcjonalny starter pod atletyczną/kalisteniczną sylwetkę.
+- **Ćwiczenia** — 387 pozycji startowych oraz dowolne własne ćwiczenia.
+- **Ranking** — CalisScore, sezon, lifetime XP, streak.
+- **Dieta** — Mifflin-St Jeor, TDEE, cel masa/utrzymanie/redukcja, makro, dziennik jedzenia.
+- **Suplementy** — nazwa, dawka, jednostka, dni, godzina, checklista.
+- **Kalendarz** — treningi, pomiary, regeneracja i notatki.
+- **Progres** — pomiary, skille i rekordy.
+- **Prywatność** — RLS; publiczne są tylko dane potrzebne do profilu/rankingu, jeśli użytkownik ustawi profil publiczny.
 
-## Instalacja na iPhone
-PWA wymaga hostingu HTTPS.
+## Ranking
+CalisScore celowo nie jest prostym rankingiem „kto podnosi najwięcej”. Uwzględnia XP, wykonane treningi, streak i opanowane skille. Jest też osobny sezonowy XP, dzięki czemu nowi użytkownicy mogą rywalizować z osobami mającymi dłuższą historię konta.
 
-Najprościej:
-1. Rozpakuj folder.
-2. Wrzuć jego zawartość na GitHub Pages, Netlify lub Cloudflare Pages.
-3. Otwórz adres w Safari na iPhone.
-4. Udostępnij → Do ekranu początkowego.
-5. Uruchom CalisLevel z ikony.
+## Instalacja
+Zobacz `DEPLOY.md`.
 
-## Ważne
-Dane treningowe są zapisane lokalnie na urządzeniu. Warto okresowo używać Eksport JSON jako backupu.
-Zdjęcia progresowe są lokalne i nie wchodzą do eksportu JSON.
+## Koszt
+Architektura jest przygotowana do działania na darmowym GitHub Pages + darmowym projekcie Supabase dla małej grupy użytkowników. Limity darmowych usług mogą być zmieniane przez ich dostawców.

@@ -3,244 +3,149 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-  <meta name="theme-color" content="#0a0d12">
+  <meta name="theme-color" content="#080b10">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="CalisLevel">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="styles.css">
-  <title>CalisLevel Pro</title>
+  <title>CalisLevel</title>
 </head>
 <body>
-  <div id="app" class="app-shell">
-    <header class="topbar">
-      <div>
-        <div class="brand">CALIS<span>LEVEL</span></div>
-        <div class="subbrand">build strength • unlock skills</div>
+<div id="toast" class="toast"></div>
+
+<section id="setupScreen" class="center-screen hidden">
+  <div class="auth-card">
+    <div class="brand big">CALIS<span>LEVEL</span></div>
+    <h2>Podłącz Supabase</h2>
+    <p class="muted">Uzupełnij <code>config.js</code> adresem projektu i kluczem publishable. Instrukcja jest w pliku DEPLOY.md.</p>
+  </div>
+</section>
+
+<section id="authScreen" class="center-screen hidden">
+  <div class="auth-card">
+    <div class="brand big">CALIS<span>LEVEL</span></div>
+    <p class="muted">Train. Level up. Compete.</p>
+    <div class="tabs"><button class="active" data-auth-tab="login">Logowanie</button><button data-auth-tab="register">Rejestracja</button></div>
+    <form id="loginForm" class="auth-form">
+      <label>E-mail<input id="loginEmail" type="email" required autocomplete="email"></label>
+      <label>Hasło<input id="loginPassword" type="password" required autocomplete="current-password"></label>
+      <button class="primary full">Zaloguj</button>
+    </form>
+    <form id="registerForm" class="auth-form hidden">
+      <label>Nazwa użytkownika<input id="registerUsername" required maxlength="24" placeholder="damian"></label>
+      <label>Wyświetlana nazwa<input id="registerName" required maxlength="40" placeholder="Damian"></label>
+      <label>E-mail<input id="registerEmail" type="email" required autocomplete="email"></label>
+      <label>Hasło<input id="registerPassword" type="password" minlength="6" required autocomplete="new-password"></label>
+      <button class="primary full">Utwórz konto</button>
+    </form>
+  </div>
+</section>
+
+<div id="app" class="app hidden">
+  <header class="topbar">
+    <div><div class="brand">CALIS<span>LEVEL</span></div><small id="headerSeason" class="muted">GLOBAL TRAINING OS</small></div>
+    <button id="profileButton" class="profile-pill"><span id="profileInitial">?</span><b id="profileName">Profil</b></button>
+  </header>
+
+  <main>
+    <section class="screen active" data-screen="home">
+      <div class="hero">
+        <div class="hero-top"><div><small>CALISSCORE</small><h1 id="homeScore">0</h1></div><div class="rank-orb"><b id="homeLevel">1</b><small>LVL</small></div></div>
+        <div class="xp-row"><span id="homeRank">Bronze III</span><span id="homeXP">0 XP</span></div>
+        <div class="xpbar"><i id="xpBar"></i></div>
+        <div class="hero-grid"><div><b id="homeWeek">0/2</b><small>ten tydzień</small></div><div><b id="homeStreak">0</b><small>streak tyg.</small></div><div><b id="homeWorkouts">0</b><small>treningi</small></div></div>
       </div>
-      <button class="icon-btn" id="profileBtn" aria-label="Profil">👤</button>
-    </header>
 
-    <main>
-      <section id="screen-home" class="screen active">
-        <div class="hero-card">
-          <div class="rank-row">
-            <div>
-              <div class="eyebrow">RANGA</div>
-              <div class="rank-name" id="rankName">Bronze III</div>
-            </div>
-            <div class="level-orb"><span id="levelNumber">1</span><small>LVL</small></div>
-          </div>
-          <div class="xp-meta"><span id="xpTotal">0 XP</span><span id="xpToNext">100 XP do kolejnego poziomu</span></div>
-          <div class="progress"><div id="xpProgress"></div></div>
-          <div class="hero-stats">
-            <div><strong id="homeStreak">0</strong><span>streak</span></div>
-            <div><strong id="homeWeek">0/2</strong><span>ten tydzień</span></div>
-            <div><strong id="homePR">0</strong><span>rekordy</span></div>
-          </div>
-        </div>
+      <div class="section-title"><div><small>DZISIAJ</small><h2>Plan dnia</h2></div><button class="link" data-go="calendar">Kalendarz</button></div>
+      <div id="todayAgenda"></div>
 
-        <div class="section-head">
-          <div>
-            <div class="eyebrow">DZISIAJ</div>
-            <h2>Następny trening</h2>
-          </div>
-          <button class="text-btn" data-nav="plans">Zmień</button>
-        </div>
-        <div id="nextWorkoutCard" class="card"></div>
+      <div class="section-title"><div><small>NASTĘPNY</small><h2>Trening</h2></div><button class="link" data-go="plans">Plany</button></div>
+      <div id="nextPlanCard" class="card"></div>
 
-        <div class="section-head">
-          <div><div class="eyebrow">FORMA</div><h2>Twój progres</h2></div>
-        </div>
-        <div class="stat-grid">
-          <div class="mini-card"><span>Masa</span><strong id="homeWeight">64.0 kg</strong><small id="weightTrend">brak trendu</small></div>
-          <div class="mini-card"><span>Pas</span><strong id="homeWaist">—</strong><small id="waistTrend">brak danych</small></div>
-          <div class="mini-card"><span>Objętość</span><strong id="homeVolume">0 kg</strong><small>ostatni trening</small></div>
-          <div class="mini-card"><span>Skills</span><strong id="homeSkills">0/6</strong><small>opanowane</small></div>
-        </div>
+      <div class="section-title"><div><small>RANKING</small><h2>Top CalisLevel</h2></div><button class="link" data-go="ranking">Pełny ranking</button></div>
+      <div id="homeLeaderboard" class="card"></div>
+    </section>
 
-        <div class="section-head">
-          <div><div class="eyebrow">MISJE</div><h2>Do zrobienia</h2></div>
-        </div>
-        <div id="missionList"></div>
-      </section>
+    <section class="screen" data-screen="workout">
+      <div class="section-title"><div><small>TRENING</small><h2 id="workoutTitle">Aktywna sesja</h2></div><button id="discardWorkout" class="danger ghost">Usuń</button></div>
+      <div id="workoutEmpty" class="empty"><div>⚡</div><h3>Brak aktywnego treningu</h3><p>Wybierz plan albo rozpocznij pustą sesję.</p><button class="primary" data-go="plans">Wybierz plan</button><button id="quickWorkout" class="secondary">Pusty trening</button></div>
+      <div id="workoutActive" class="hidden">
+        <div class="session-stats"><div><small>CZAS</small><b id="sessionTimer">00:00</b></div><div><small>OBJĘTOŚĆ</small><b id="sessionVolume">0 kg</b></div><div><small>SERIE</small><b id="sessionSets">0</b></div></div>
+        <div id="sessionExercises"></div>
+        <button id="addExerciseSession" class="secondary full">+ Dodaj ćwiczenie</button>
+        <button id="finishWorkout" class="primary full jumbo">Zakończ trening</button>
+      </div>
+    </section>
 
-      <section id="screen-workout" class="screen">
-        <div class="section-head">
-          <div><div class="eyebrow">TRENING</div><h2>Aktywna sesja</h2></div>
-          <button class="ghost-btn" id="abandonWorkoutBtn">Zakończ</button>
-        </div>
-        <div id="activeWorkoutEmpty" class="empty-card">
-          <div class="empty-icon">⚡</div>
-          <h3>Brak aktywnego treningu</h3>
-          <p>Wybierz plan i rozpocznij sesję. Aplikacja zapamięta serie, ciężary i rekordy.</p>
-          <button class="primary-btn" data-nav="plans">Wybierz plan</button>
-        </div>
-        <div id="activeWorkoutContent" class="hidden">
-          <div class="timer-card">
-            <div><span class="eyebrow">CZAS TRENINGU</span><strong id="sessionTime">00:00</strong></div>
-            <div><span class="eyebrow">OBJĘTOŚĆ</span><strong id="sessionVolume">0 kg</strong></div>
-          </div>
-          <div id="activeExerciseList"></div>
-          <button class="primary-btn full" id="finishWorkoutBtn">Zakończ trening + XP</button>
-        </div>
-      </section>
+    <section class="screen" data-screen="plans">
+      <div class="section-title"><div><small>PROGRAM</small><h2>Twoje plany</h2></div><button id="createPlanBtn" class="primary compact">+ Plan</button></div>
+      <button id="installTemplatesBtn" class="template-banner">✨ Dodaj 3 gotowe plany Calis Athletic</button>
+      <div id="plansList"></div>
+    </section>
 
-      <section id="screen-plans" class="screen">
-        <div class="section-head">
-          <div><div class="eyebrow">PROGRAM</div><h2>Plany treningowe</h2></div>
-          <button class="primary-btn compact" id="newPlanBtn">+ Plan</button>
-        </div>
-        <div id="plansList"></div>
-      </section>
+    <section class="screen" data-screen="nutrition">
+      <div class="section-title"><div><small>DIETA</small><h2>Kalorie i makro</h2></div><input id="nutritionDate" type="date" class="date-chip"></div>
+      <div class="macro-card"><div class="kcal-ring"><b id="kcalNow">0</b><small>/<span id="kcalTarget">—</span> kcal</small></div><div class="macro-grid"><div><span>B</span><b id="proteinNow">0</b><small>/<span id="proteinTarget">—</span> g</small></div><div><span>W</span><b id="carbsNow">0</b><small>/<span id="carbsTarget">—</span> g</small></div><div><span>T</span><b id="fatNow">0</b><small>/<span id="fatTarget">—</span> g</small></div></div></div>
+      <div class="card"><h3>Kalkulator zapotrzebowania</h3><div class="form-grid"><label>Waga kg<input id="calcWeight" type="number" step="0.1"></label><label>Wzrost cm<input id="calcHeight" type="number" step="0.1"></label><label>Rok urodzenia<input id="calcBirth" type="number"></label><label>Płeć<select id="calcSex"><option value="male">Mężczyzna</option><option value="female">Kobieta</option></select></label><label>Aktywność<select id="calcActivity"><option value="1.2">Siedząca</option><option value="1.375">Lekka</option><option value="1.45" selected>Siedząca + ruch</option><option value="1.55">Średnia</option><option value="1.725">Wysoka</option></select></label><label>Cel<select id="calcGoal"><option value="cut">Redukcja</option><option value="maintain">Utrzymanie</option><option value="gain">Masa</option></select></label></div><button id="calculateCalories" class="primary full">Policz i zapisz cel</button><div id="calorieResult" class="result-box hidden"></div></div>
+      <div class="card"><div class="row"><h3>Dodaj jedzenie</h3><button id="newFoodBtn" class="secondary compact">+ Własny produkt</button></div><input id="foodSearch" placeholder="Szukaj produktu…"><div id="foodResults" class="list"></div></div>
+      <div class="card"><h3>Dziennik</h3><div id="mealLog"></div></div>
+    </section>
 
-      <section id="screen-progress" class="screen">
-        <div class="segmented">
-          <button class="active" data-progress-tab="stats">Statystyki</button>
-          <button data-progress-tab="body">Pomiary</button>
-          <button data-progress-tab="prs">Rekordy</button>
-          <button data-progress-tab="photos">Zdjęcia</button>
-        </div>
+    <section class="screen" data-screen="ranking">
+      <div class="section-title"><div><small>SPOŁECZNOŚĆ</small><h2>Ranking</h2></div></div>
+      <div class="tabs ranking-tabs"><button class="active" data-rank="score">CalisScore</button><button data-rank="season">Sezon</button><button data-rank="xp">Lifetime XP</button><button data-rank="streak">Streak</button></div>
+      <div id="leaderboardPodium"></div><div id="leaderboardList" class="card"></div>
+    </section>
 
-        <div id="progress-stats" class="progress-tab active">
-          <div class="card">
-            <div class="section-head tight"><div><div class="eyebrow">MASA CIAŁA</div><h3>Trend</h3></div><span id="weightAvgBadge" class="badge">—</span></div>
-            <div id="weightChart" class="chart"></div>
-          </div>
-          <div class="card">
-            <div class="section-head tight"><div><div class="eyebrow">TRENINGI</div><h3>Ostatnie 8 tygodni</h3></div></div>
-            <div id="workoutChart" class="chart"></div>
-          </div>
-          <div class="card">
-            <h3>Podsumowanie</h3>
-            <div class="stat-grid">
-              <div class="mini-card"><span>Treningi</span><strong id="statsWorkouts">0</strong></div>
-              <div class="mini-card"><span>Serie</span><strong id="statsSets">0</strong></div>
-              <div class="mini-card"><span>Objętość</span><strong id="statsVolume">0</strong></div>
-              <div class="mini-card"><span>XP</span><strong id="statsXP">0</strong></div>
-            </div>
-          </div>
-        </div>
+    <section class="screen" data-screen="calendar">
+      <div class="section-title"><div><small>PLANOWANIE</small><h2>Kalendarz</h2></div><button id="newEventBtn" class="primary compact">+ Wpis</button></div>
+      <input id="calendarMonth" type="month" class="month-input"><div id="calendarGrid" class="calendar-grid"></div><div id="calendarEvents"></div>
+    </section>
 
-        <div id="progress-body" class="progress-tab">
-          <div class="card">
-            <h3>Dodaj pomiar</h3>
-            <div class="form-grid">
-              <label>Masa (kg)<input id="bodyWeight" type="number" step="0.1" value="64"></label>
-              <label>Pas (cm)<input id="bodyWaist" type="number" step="0.1"></label>
-              <label>Klatka (cm)<input id="bodyChest" type="number" step="0.1"></label>
-              <label>Ramię (cm)<input id="bodyArm" type="number" step="0.1"></label>
-            </div>
-            <button class="primary-btn full" id="saveMeasurementBtn">Zapisz pomiar +5 XP</button>
-          </div>
-          <div class="card"><h3>Historia</h3><div id="measurementHistory"></div></div>
-        </div>
+    <section class="screen" data-screen="more">
+      <div class="section-title"><div><small>NARZĘDZIA</small><h2>Więcej</h2></div></div>
+      <button class="menu-card" data-go="exercises"><span>🏋️</span><div><b>Biblioteka ćwiczeń</b><small>387+ bazowych i własne</small></div><i>›</i></button>
+      <button class="menu-card" data-go="supplements"><span>💊</span><div><b>Suplementy</b><small>Harmonogram i checklista</small></div><i>›</i></button>
+      <button class="menu-card" data-go="calendar"><span>📅</span><div><b>Kalendarz</b><small>Treningi i plan tygodnia</small></div><i>›</i></button>
+      <button class="menu-card" data-go="progress"><span>📈</span><div><b>Pomiary i progres</b><small>Waga, pas, PR, skille</small></div><i>›</i></button>
+      <button class="menu-card" data-go="profile"><span>👤</span><div><b>Profil</b><small>Ustawienia i prywatność</small></div><i>›</i></button>
+    </section>
 
-        <div id="progress-prs" class="progress-tab">
-          <div class="card"><h3>Rekordy osobiste</h3><div id="prList"></div></div>
-        </div>
+    <section class="screen" data-screen="exercises">
+      <div class="section-title"><div><small>BAZA</small><h2>Ćwiczenia</h2></div><button id="customExerciseBtn" class="primary compact">+ Własne</button></div>
+      <input id="exerciseSearch" placeholder="Szukaj: podciąganie, plecy, hantle…"><div id="exerciseFilters" class="chips"></div><div id="exerciseList" class="card list"></div>
+    </section>
 
-        <div id="progress-photos" class="progress-tab">
-          <div class="card">
-            <h3>Zdjęcia progresowe</h3>
-            <p class="muted">Zdjęcia są przechowywane lokalnie na Twoim urządzeniu w bazie aplikacji.</p>
-            <label class="upload-btn">+ Dodaj zdjęcie<input id="photoInput" type="file" accept="image/*" capture="environment"></label>
-          </div>
-          <div id="photoGrid" class="photo-grid"></div>
-        </div>
-      </section>
+    <section class="screen" data-screen="supplements">
+      <div class="section-title"><div><small>RUTYNA</small><h2>Suplementy</h2></div><button id="newSupplementBtn" class="primary compact">+ Dodaj</button></div>
+      <div class="card"><h3>Dzisiaj</h3><div id="todaySupplements"></div></div><div id="supplementList"></div>
+      <p class="disclaimer">Harmonogram służy do organizacji suplementów, nie zastępuje zaleceń lekarza ani informacji z etykiety produktu.</p>
+    </section>
 
-      <section id="screen-skills" class="screen">
-        <div class="section-head"><div><div class="eyebrow">CALISTHENICS</div><h2>Drzewko skilli</h2></div></div>
-        <div id="skillList"></div>
-      </section>
+    <section class="screen" data-screen="progress">
+      <div class="section-title"><div><small>PROGRES</small><h2>Pomiary i skille</h2></div><button id="newMeasurementBtn" class="primary compact">+ Pomiar</button></div>
+      <div class="card"><h3>Ostatnie pomiary</h3><div id="measurementsList"></div></div><div class="card"><h3>Kalisteniczne skille</h3><div id="skillsList"></div></div><div class="card"><h3>Rekordy</h3><div id="prsList"></div></div>
+    </section>
 
-      <section id="screen-more" class="screen">
-        <div class="card">
-          <h3>Profil i cele</h3>
-          <div class="form-grid">
-            <label>Wzrost (cm)<input id="settingsHeight" type="number" value="175"></label>
-            <label>Waga startowa (kg)<input id="settingsStartWeight" type="number" step="0.1" value="64"></label>
-            <label>Cel treningów / tydzień<input id="settingsWeeklyGoal" type="number" min="1" max="7" value="2"></label>
-            <label>Cel masy (kg)<input id="settingsTargetWeight" type="number" step="0.1" value="68"></label>
-          </div>
-          <button class="primary-btn full" id="saveSettingsBtn">Zapisz ustawienia</button>
-        </div>
+    <section class="screen" data-screen="profile">
+      <div class="section-title"><div><small>KONTO</small><h2>Profil</h2></div></div>
+      <div class="card"><div class="form-grid"><label>Nazwa<input id="profileDisplayName"></label><label>Username<input id="profileUsername"></label><label>Wzrost cm<input id="profileHeight" type="number"></label><label>Cel treningów / tydz.<input id="profileWeeklyGoal" type="number" min="1" max="7"></label><label>Cel masy kg<input id="profileTargetWeight" type="number" step="0.1"></label><label>Widoczność<select id="profilePublic"><option value="true">Publiczny ranking</option><option value="false">Prywatny</option></select></label></div><button id="saveProfileBtn" class="primary full">Zapisz</button></div>
+      <div class="card"><button id="logoutBtn" class="danger full">Wyloguj</button></div>
+    </section>
+  </main>
 
-        <div class="card">
-          <h3>Osiągnięcia</h3>
-          <div id="achievementList"></div>
-        </div>
+  <nav class="bottom-nav"><button class="active" data-go="home"><span>⌂</span>Start</button><button data-go="workout"><span>⚡</span>Trening</button><button data-go="plans"><span>▦</span>Plany</button><button data-go="nutrition"><span>◉</span>Dieta</button><button data-go="ranking"><span>🏆</span>Ranking</button><button data-go="more"><span>•••</span>Więcej</button></nav>
+</div>
 
-        <div class="card">
-          <h3>Biblioteka ćwiczeń</h3>
-          <input id="exerciseSearch" placeholder="Szukaj ćwiczenia…">
-          <div id="exerciseLibrary"></div>
-        </div>
+<div id="restTimer" class="rest-timer hidden"><div><small>PRZERWA</small><b id="restValue">01:30</b></div><button id="restMinus">−15</button><button id="restPlus">+15</button><button id="restClose">✕</button></div>
 
-        <div class="card">
-          <h3>Dane aplikacji</h3>
-          <div class="button-grid">
-            <button class="secondary-btn" id="exportBtn">Eksport JSON</button>
-            <label class="secondary-btn upload-btn">Import JSON<input id="importInput" type="file" accept="application/json"></label>
-            <button class="danger-btn" id="resetBtn">Wyczyść dane</button>
-          </div>
-        </div>
+<dialog id="modal" class="modal"><form method="dialog" id="modalForm"><div class="modal-head"><h3 id="modalTitle">Formularz</h3><button value="cancel" class="icon">✕</button></div><div id="modalBody"></div><button id="modalSave" value="default" class="primary full">Zapisz</button></form></dialog>
+<dialog id="pickerModal" class="modal"><form method="dialog"><div class="modal-head"><h3>Wybierz ćwiczenie</h3><button value="cancel" class="icon">✕</button></div><input id="pickerSearch" placeholder="Szukaj ćwiczenia…"><div id="pickerResults" class="list"></div></form></dialog>
 
-        <div class="card">
-          <h3>Instalacja na iPhone</h3>
-          <p class="muted">Otwórz aplikację w Safari → Udostępnij → <b>Do ekranu początkowego</b>. Po instalacji działa w trybie pełnoekranowym i offline.</p>
-        </div>
-      </section>
-    </main>
-
-    <nav class="bottom-nav">
-      <button class="active" data-nav="home"><span>⌂</span>Start</button>
-      <button data-nav="workout"><span>⚡</span>Trening</button>
-      <button data-nav="plans"><span>▦</span>Plany</button>
-      <button data-nav="progress"><span>↗</span>Progres</button>
-      <button data-nav="skills"><span>◆</span>Skille</button>
-      <button data-nav="more"><span>•••</span>Więcej</button>
-    </nav>
-  </div>
-
-  <div id="restTimer" class="rest-timer hidden">
-    <div>
-      <small>PRZERWA</small>
-      <strong id="restTimerValue">01:30</strong>
-    </div>
-    <button id="restMinus">−15</button>
-    <button id="restPlus">+15</button>
-    <button id="restStop">✕</button>
-  </div>
-
-  <dialog id="planDialog" class="modal-dialog">
-    <form method="dialog" id="planForm">
-      <div class="dialog-head"><h3 id="planDialogTitle">Nowy plan</h3><button value="cancel" class="icon-btn">✕</button></div>
-      <label>Nazwa planu<input id="planNameInput" required placeholder="np. Upper A"></label>
-      <label>Opis<input id="planDescInput" placeholder="np. Pull + Push"></label>
-      <div id="planExercisesEditor"></div>
-      <button type="button" class="secondary-btn full" id="addExerciseToPlanBtn">+ Dodaj ćwiczenie</button>
-      <button value="default" class="primary-btn full" id="savePlanDialogBtn">Zapisz plan</button>
-    </form>
-  </dialog>
-
-  <dialog id="exercisePickerDialog" class="modal-dialog">
-    <form method="dialog">
-      <div class="dialog-head"><h3>Wybierz ćwiczenie</h3><button value="cancel" class="icon-btn">✕</button></div>
-      <input id="pickerSearch" placeholder="Szukaj…">
-      <div id="pickerList"></div>
-    </form>
-  </dialog>
-
-  <dialog id="skillDialog" class="modal-dialog">
-    <form method="dialog">
-      <div class="dialog-head"><h3 id="skillDialogTitle">Skill</h3><button value="cancel" class="icon-btn">✕</button></div>
-      <div id="skillSteps"></div>
-    </form>
-  </dialog>
-
-  <script src="app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
