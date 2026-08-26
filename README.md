@@ -16,9 +16,3 @@ Darmowa PWA do treningu, kalisteniki, odżywiania, suplementacji i rywalizacji z
 
 ## Ranking
 CalisScore celowo nie jest prostym rankingiem „kto podnosi najwięcej”. Uwzględnia XP, wykonane treningi, streak i opanowane skille. Jest też osobny sezonowy XP, dzięki czemu nowi użytkownicy mogą rywalizować z osobami mającymi dłuższą historię konta.
-
-## Instalacja
-Zobacz `DEPLOY.md`.
-
-## Koszt
-Architektura jest przygotowana do działania na darmowym GitHub Pages + darmowym projekcie Supabase dla małej grupy użytkowników. Limity darmowych usług mogą być zmieniane przez ich dostawców.
