@@ -152,11 +152,12 @@
 
   function openPlanEditor(plan=null){
     state.selectedPlanExercises = plan ? (plan.plan_exercises||[]).sort((a,b)=>a.sort_order-b.sort_order).map(x=>({exercise_id:x.exercise_id,exercise:x.exercises,sets:x.sets,rep_min:x.rep_min,rep_max:x.rep_max,rest_sec:x.rest_sec})) : [];
-    const exerciseOptions=[...state.exercises].sort((a,b)=>a.category.localeCompare(b.category,'pl')||a.name.localeCompare(b.name,'pl')).map(ex=>`<option value="${esc(ex.id)}">${esc(ex.category)} — ${esc(ex.name)}</option>`).join('');
-    openModal(plan?'Edytuj plan':'Nowy plan',()=>savePlan(plan?.id),`<label>Nazwa<input id="mPlanName" value="${esc(plan?.name||'')}"></label><label>Opis<input id="mPlanDesc" value="${esc(plan?.description||'')}"></label><div id="mPlanItems"></div><label>Ćwiczenie<select id="mPlanExercise"><option value="">— Wybierz ćwiczenie z listy —</option>${exerciseOptions}</select></label><button type="button" class="secondary full" id="mAddPlanExercise">+ Dodaj wybrane ćwiczenie</button>`);
-    renderPlanModalItems(); $('#mAddPlanExercise').onclick=()=>{const select=$('#mPlanExercise'),ex=state.exercises.find(item=>item.id===select.value);if(!ex){toast('Wybierz ćwiczenie z listy');return;}state.selectedPlanExercises.push({exercise_id:ex.id,exercise:ex,sets:3,rep_min:8,rep_max:12,rest_sec:90});select.value='';renderPlanModalItems();};
+    openModal(plan?'Edytuj plan':'Nowy plan',()=>savePlan(plan?.id),`<label>Nazwa<input id="mPlanName" value="${esc(plan?.name||'')}"></label><label>Opis<input id="mPlanDesc" value="${esc(plan?.description||'')}"></label><div id="mPlanItems"></div><label>Ćwiczenia z Supabase</label><div id="mPlanExerciseList" class="list"></div>`);
+    renderPlanModalItems(); renderPlanExerciseList();
   }
   function renderPlanModalItems(){ const box=$('#mPlanItems'); if(!box)return; box.innerHTML=state.selectedPlanExercises.map((x,i)=>`<div class="exercise-card"><div class="row"><b>${esc(x.exercise.name)}</b><button type="button" class="danger ghost" onclick="Calis.removePlanItem(${i})">✕</button></div><div class="form-grid"><label>Serie<input type="number" value="${x.sets}" onchange="Calis.planField(${i},'sets',this.value)"></label><label>Min powt.<input type="number" value="${x.rep_min??''}" onchange="Calis.planField(${i},'rep_min',this.value)"></label><label>Max powt.<input type="number" value="${x.rep_max??''}" onchange="Calis.planField(${i},'rep_max',this.value)"></label><label>Przerwa s<input type="number" value="${x.rest_sec}" onchange="Calis.planField(${i},'rest_sec',this.value)"></label></div></div>`).join(''); }
+  function renderPlanExerciseList(){const box=$('#mPlanExerciseList');if(!box)return;const selected=new Set(state.selectedPlanExercises.map(x=>x.exercise_id));box.innerHTML=[...state.exercises].sort((a,b)=>a.category.localeCompare(b.category,'pl')||a.name.localeCompare(b.name,'pl')).map(ex=>`<div class="list-row"><div><b>${esc(ex.name)}</b><small>${esc(ex.category)}${ex.equipment?' • '+esc(ex.equipment):''}</small></div><button type="button" ${selected.has(ex.id)?'disabled':''} onclick="Calis.addPlanExercise('${ex.id}')">${selected.has(ex.id)?'Dodano':'+'}</button></div>`).join('')||'<p class="muted">Brak ćwiczeń w bazie Supabase.</p>';}
+  function addPlanExercise(id){const ex=state.exercises.find(item=>item.id===id);if(!ex||state.selectedPlanExercises.some(item=>item.exercise_id===id))return;state.selectedPlanExercises.push({exercise_id:ex.id,exercise:ex,sets:3,rep_min:8,rep_max:12,rest_sec:90});renderPlanModalItems();renderPlanExerciseList();}
   async function savePlan(id){
     const name=$('#mPlanName').value.trim(); if(!name){toast('Podaj nazwę');return false;}
     let planId=id;
@@ -304,7 +305,7 @@
   $('#restMinus').onclick=()=>{state.restSeconds=Math.max(0,state.restSeconds-15);renderRest();};$('#restPlus').onclick=()=>{state.restSeconds+=15;renderRest();};$('#restClose').onclick=stopRest;
 
   // Global functions for inline event handlers
-  window.Calis={startPlan,editPlan:id=>openPlanEditor(state.plans.find(p=>p.id===id)),deletePlan,removePlanItem:i=>{state.selectedPlanExercises.splice(i,1);renderPlanModalItems();},planField:(i,k,v)=>state.selectedPlanExercises[i][k]=v,setVal,doneSet,addSet,startRest,setExerciseCategory,pickExercise,addFood,deleteMeal,toggleSupplement,deleteSupplement,calendarDay,deleteEvent,editSkill};
+  window.Calis={startPlan,editPlan:id=>openPlanEditor(state.plans.find(p=>p.id===id)),deletePlan,addPlanExercise,removePlanItem:i=>{state.selectedPlanExercises.splice(i,1);renderPlanModalItems();renderPlanExerciseList();},planField:(i,k,v)=>state.selectedPlanExercises[i][k]=v,setVal,doneSet,addSet,startRest,setExerciseCategory,pickExercise,addFood,deleteMeal,toggleSupplement,deleteSupplement,calendarDay,deleteEvent,editSkill};
 
   // Initial auth session
   db.auth.getSession().then(({data})=>setSession(data.session));
