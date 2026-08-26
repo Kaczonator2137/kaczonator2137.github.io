@@ -16,7 +16,7 @@
   const state = {
     user: null, profile: null, settings: null, exercises: [], plans: [], skills: [], leaderboard: [],
     activeWorkout: null, sessionTicker: null, restTimer: null, restSeconds: 0,
-    pickerCallback: null, rankMode: 'score', selectedPlanExercises: []
+    pickerCallback: null, rankMode: 'score', selectedPlanExercises: [], userSkills: [], foodResults: []
   };
 
   const rankName = level => {
@@ -24,7 +24,8 @@
     let out='Bronze III'; for (const [l,n] of r) if (level>=l) out=n; return out;
   };
   const levelInfo = xp => { let level=1, rem=+xp||0, need=100; while(rem>=need){rem-=need; level++; need=Math.round(100*Math.pow(1.14,level-1));} return {level,rem,need,pct:Math.min(100,rem/need*100)}; };
-  const todayISO = () => new Date().toISOString().slice(0,10);
+  const dateISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const todayISO = () => dateISO(new Date());
   const mondayIndex = d => { const x=d.getDay(); return x===0?7:x; };
   const esc = s => String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const num = v => Number(v||0);
@@ -88,7 +89,7 @@
       state.profile=profile; state.settings=settings; state.exercises=exercises||[]; state.skills=skills||[];
       $('#profileName').textContent=profile.display_name; $('#profileInitial').textContent=(profile.display_name||'?')[0].toUpperCase();
       if(seasons?.[0]) $('#headerSeason').textContent=seasons[0].name.toUpperCase();
-      state.activeWorkout=JSON.parse(localStorage.getItem('calislevel-active-'+uid)||'null');
+      try{state.activeWorkout=JSON.parse(localStorage.getItem('calislevel-active-'+uid)||'null');}catch{state.activeWorkout=null;localStorage.removeItem('calislevel-active-'+uid);toast('Usunięto uszkodzony zapis poprzedniego treningu');}
       await Promise.all([loadPlans(),loadHome()]);
       renderWorkout();
       if(state.activeWorkout) startSessionTicker();
@@ -134,20 +135,26 @@
   $('#installTemplatesBtn').addEventListener('click',installAthleticTemplates);
 
   const TEMPLATES=[
-    {name:'Calis Athletic A',description:'Pull + Push + Legs',items:[['podciaganie-nachwyt-sredni-masa-ciala',4,4,8,120],['bar-dip',4,5,10,120],['przysiad-back-squat-high-bar',3,6,10,150],['wioslowanie-maszyna-chest-supported-standard',3,8,12,100],['unoszenie-bokiem-hantle-oburacz',3,12,20,60],['hanging-leg-raise',3,8,15,75],['tyl-barkow-face-pull-linka',2,15,20,60]]},
-    {name:'Calis Athletic B',description:'Shoulders + Pull + Posterior',items:[['podciaganie-podchwyt-masa-ciala',4,5,10,120],['wyciskanie-nad-glowe-hantle-siedzac',3,6,10,120],['rdl-sztanga',3,6,10,150],['pompki-klasyczne',3,8,15,75],['sciaganie-drazka-wyciagu-waski-neutralny',3,8,12,100],['unoszenie-bokiem-hantle-oburacz',3,12,20,60],['ab-wheel-rollout',3,6,12,90],['farmer-carry',2,null,null,90]]},
+    {name:'Calis Athletic A',description:'Pull + Push + Legs',items:[[['podciaganie-nachwyt-sredni-masa-ciaa','podciaganie-nachwyt-sredni-masa-ciala'],4,4,8,120],['bar-dip',4,5,10,120],['przysiad-back-squat-high-bar',3,6,10,150],[['wiosowanie-maszyna-chest-supported-standard','wioslowanie-maszyna-chest-supported-standard'],3,8,12,100],['unoszenie-bokiem-hantle-oburacz',3,12,20,60],['hanging-leg-raise',3,8,15,75],[['ty-barkow-face-pull-linka','tyl-barkow-face-pull-linka'],2,15,20,60]]},
+    {name:'Calis Athletic B',description:'Shoulders + Pull + Posterior',items:[[['podciaganie-podchwyt-masa-ciaa','podciaganie-podchwyt-masa-ciala'],4,5,10,120],[['wyciskanie-nad-gowe-hantle-siedzac','wyciskanie-nad-glowe-hantle-siedzac'],3,6,10,120],['rdl-sztanga',3,6,10,150],['pompki-klasyczne',3,8,15,75],['sciaganie-drazka-wyciagu-waski-neutralny',3,8,12,100],['unoszenie-bokiem-hantle-oburacz',3,12,20,60],['ab-wheel-rollout',3,6,12,90],['farmer-carry',2,null,null,90]]},
     {name:'Calis Athletic C',description:'Skills + Athletic Full Body',items:[['muscle-up-na-drazku',4,1,5,150],['elevated-pike-push-up',4,6,12,90],['bulgarian-split-squat-hantle',3,8,12,90],['podciaganie-neutralny-z-guma',3,8,12,90],['l-sit',4,null,null,90],['hollow-body-hold',3,null,null,60],['unoszenie-bokiem-hantle-oburacz',3,12,20,60]]}
   ];
   async function installAthleticTemplates(){
     if(!confirm('Dodać 3 gotowe plany Calis Athletic do Twojego konta?')) return;
-    for(const t of TEMPLATES){
-      if(state.plans.some(p=>p.name===t.name)) continue;
-      const plan=await q(db.from('plans').insert({user_id:state.user.id,name:t.name,description:t.description}).select().single());
-      const inserts=[]; let order=0;
-      for(const [slug,sets,rmin,rmax,rest] of t.items){ const ex=state.exercises.find(e=>e.slug===slug); if(ex) inserts.push({plan_id:plan.id,exercise_id:ex.id,sort_order:order++,sets,rep_min:rmin,rep_max:rmax,rest_sec:rest}); }
-      if(inserts.length) await q(db.from('plan_exercises').insert(inserts));
-    }
-    toast('Dodano 3 plany'); await loadPlans();
+    const button=$('#installTemplatesBtn'),originalText=button.textContent;button.disabled=true;button.textContent='Dodawanie planów…';let saved=0;
+    try{
+      await loadPlans();
+      for(const t of TEMPLATES){
+        const resolved=t.items.map(([key,sets,rmin,rmax,rest],sort_order)=>{const slugs=Array.isArray(key)?key:[key],ex=state.exercises.find(e=>slugs.includes(e.slug));return ex?{exercise_id:ex.id,sort_order,sets,rep_min:rmin,rep_max:rmax,rest_sec:rest}:null;});
+        if(resolved.some(x=>!x)){console.error('Brak ćwiczeń dla planu',t.name,t.items.filter((_,i)=>!resolved[i]).map(x=>x[0]));throw new Error(`Brakuje ćwiczeń wymaganych przez plan ${t.name}. Uruchom aktualny seed ćwiczeń w Supabase.`);}
+        let plan=state.plans.find(p=>p.name===t.name),created=false;
+        if(!plan){plan=await q(db.from('plans').insert({user_id:state.user.id,name:t.name,description:t.description}).select().single());created=true;}
+        try{if(!created)await q(db.from('plan_exercises').delete().eq('plan_id',plan.id));await q(db.from('plan_exercises').insert(resolved.map(x=>({...x,plan_id:plan.id}))));saved++;}
+        catch(error){if(created){try{await q(db.from('plans').delete().eq('id',plan.id),true);}catch{}}throw error;}
+      }
+      toast(`Gotowe • zapisano ${saved} plany`);
+    }catch(error){toast(error.message||'Nie udało się dodać planów');}
+    finally{try{await loadPlans();}finally{button.disabled=false;button.textContent=originalText;}}
   }
 
   function openPlanEditor(plan=null){
@@ -188,19 +195,22 @@
   function startSessionTicker(){clearInterval(state.sessionTicker);const tick=()=>{if(!state.activeWorkout)return;const s=Math.floor((Date.now()-new Date(state.activeWorkout.started_at))/1000);$('#sessionTimer').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');};tick();state.sessionTicker=setInterval(tick,1000);}
   async function finishWorkout(){
     const a=state.activeWorkout; if(!a)return; const done=a.exercises.flatMap(e=>e.sets.filter(s=>s.done).map((s,i)=>({e,s,i}))); if(!done.length){toast('Zaznacz wykonane serie');return;}
+    const button=$('#finishWorkout');button.disabled=true;
     try{
-      const workout=await q(db.from('workouts').insert({user_id:state.user.id,plan_id:a.plan_id,title:a.title,started_at:a.started_at}).select().single());
+      const workout=await q(db.from('workouts').upsert({id:a.id,user_id:state.user.id,plan_id:a.plan_id,title:a.title,started_at:a.started_at},{onConflict:'id'}).select().single());
       const sets=[]; for(const e of a.exercises){let no=1;for(const s of e.sets){if(s.done)sets.push({workout_id:workout.id,exercise_id:e.exercise_id,set_no:no++,weight_kg:s.weight?+s.weight:null,reps:s.reps?+s.reps:null,rpe:s.rpe?+s.rpe:null,completed:true});}}
+      await q(db.from('workout_sets').delete().eq('workout_id',workout.id));
       await q(db.from('workout_sets').insert(sets));
       await q(db.from('workouts').update({finished_at:new Date().toISOString(),duration_seconds:Math.floor((Date.now()-new Date(a.started_at))/1000)}).eq('id',workout.id));
       state.activeWorkout=null; saveActive(); clearInterval(state.sessionTicker); toast('Trening zapisany • +50 XP'); await Promise.all([loadPlans(),loadHome()]);renderWorkout();go('home');
-    }catch(e){}
+    }catch(e){button.disabled=false;}
   }
 
   // EXERCISE LIBRARY / PICKER
   const categories=()=>[...new Set(state.exercises.map(e=>e.category))].sort(); let exerciseCategory='Wszystkie';
   function renderExerciseLibrary(){
-    $('#exerciseFilters').innerHTML=['Wszystkie',...categories()].slice(0,18).map(c=>`<button class="chip ${c===exerciseCategory?'active':''}" onclick="Calis.setExerciseCategory('${esc(c)}')">${esc(c)}</button>`).join('');
+    $('#exerciseFilters').innerHTML=['Wszystkie',...categories()].slice(0,18).map(c=>`<button class="chip ${c===exerciseCategory?'active':''}" data-exercise-category="${esc(c)}">${esc(c)}</button>`).join('');
+    $$('#exerciseFilters [data-exercise-category]').forEach(button=>button.onclick=()=>setExerciseCategory(button.dataset.exerciseCategory));
     const term=($('#exerciseSearch').value||'').toLowerCase(); const list=state.exercises.filter(e=>(exerciseCategory==='Wszystkie'||e.category===exerciseCategory)&&(!term||(`${e.name} ${e.category} ${e.equipment||''}`).toLowerCase().includes(term))).slice(0,120);
     $('#exerciseList').innerHTML=list.map(e=>`<div class="list-row"><div><b>${esc(e.name)}</b><small>${esc(e.category)} • ${esc(e.equipment||'')}</small></div>${e.owner_id?'<span class="tag">własne</span>':''}</div>`).join('')||'<p class="muted">Brak wyników.</p>';
   }
@@ -229,8 +239,8 @@
     await q(db.from('user_settings').update({birth_year:b,sex,height_cm:h,activity_factor:af,goal,kcal_target:target,protein_target:protein,fat_target:fat,carbs_target:carbs,updated_at:new Date().toISOString()}).eq('user_id',state.user.id)); state.settings={...state.settings,birth_year:b,sex,height_cm:h,activity_factor:af,goal,kcal_target:target,protein_target:protein,fat_target:fat,carbs_target:carbs};
     $('#calorieResult').classList.remove('hidden');$('#calorieResult').innerHTML=`BMR <b>${Math.round(bmr)} kcal</b> • utrzymanie ~<b>${tdee} kcal</b><br>Cel: <b>${target} kcal</b> • B ${protein} g / W ${carbs} g / T ${fat} g`;loadNutrition();
   }
-  async function searchFoods(){const term=$('#foodSearch').value.trim();if(term.length<2){$('#foodResults').innerHTML='';return;}const foods=await q(db.from('foods').select('*').ilike('name',`%${term}%`).limit(30),true)||[];$('#foodResults').innerHTML=foods.map(f=>`<div class="list-row"><div><b>${esc(f.name)}</b><small>${f.kcal_100g} kcal/100 g • B ${f.protein_100g} / W ${f.carbs_100g} / T ${f.fat_100g}</small></div><button onclick="Calis.addFood('${f.id}','${esc(f.name)}')">+</button></div>`).join('')||'<p class="muted">Brak. Dodaj własny produkt.</p>';}
-  function addFood(id,name){openModal('Dodaj do dziennika',async()=>{const grams=+$('#mFoodGrams').value;if(!grams)return false;await q(db.from('meal_logs').insert({user_id:state.user.id,food_id:id,eaten_on:$('#nutritionDate').value||todayISO(),meal_type:$('#mMealType').value,grams}));await loadNutrition();return true;},`<p><b>${name}</b></p><label>Gramy<input id="mFoodGrams" type="number" value="100"></label><label>Posiłek<select id="mMealType"><option value="lunch">Obiad</option><option value="breakfast">Śniadanie</option><option value="dinner">Kolacja</option><option value="snack">Przekąska</option><option value="other">Inne</option></select></label>`);}
+  async function searchFoods(){const term=$('#foodSearch').value.trim();if(term.length<2){state.foodResults=[];$('#foodResults').innerHTML='';return;}state.foodResults=await q(db.from('foods').select('*').ilike('name',`%${term}%`).limit(30),true)||[];$('#foodResults').innerHTML=state.foodResults.map(f=>`<div class="list-row"><div><b>${esc(f.name)}</b><small>${f.kcal_100g} kcal/100 g • B ${f.protein_100g} / W ${f.carbs_100g} / T ${f.fat_100g}</small></div><button onclick="Calis.addFood('${f.id}')">+</button></div>`).join('')||'<p class="muted">Brak. Dodaj własny produkt.</p>';}
+  function addFood(id){const food=state.foodResults.find(f=>f.id===id);if(!food)return;openModal('Dodaj do dziennika',async()=>{const grams=+$('#mFoodGrams').value;if(!grams)return false;await q(db.from('meal_logs').insert({user_id:state.user.id,food_id:id,eaten_on:$('#nutritionDate').value||todayISO(),meal_type:$('#mMealType').value,grams}));await loadNutrition();return true;},`<p><b>${esc(food.name)}</b></p><label>Gramy<input id="mFoodGrams" type="number" value="100"></label><label>Posiłek<select id="mMealType"><option value="lunch">Obiad</option><option value="breakfast">Śniadanie</option><option value="dinner">Kolacja</option><option value="snack">Przekąska</option><option value="other">Inne</option></select></label>`);}
   async function deleteMeal(id){await q(db.from('meal_logs').delete().eq('id',id));loadNutrition();}
   function openFoodModal(){openModal('Własny produkt',async()=>{const name=$('#mFoodName').value.trim();if(!name)return false;await q(db.from('foods').insert({owner_id:state.user.id,name,brand:$('#mFoodBrand').value.trim(),kcal_100g:+$('#mKcal').value||0,protein_100g:+$('#mProtein').value||0,carbs_100g:+$('#mCarbs').value||0,fat_100g:+$('#mFat').value||0,is_public:false}));toast('Produkt dodany');return true;},`<label>Nazwa<input id="mFoodName"></label><label>Marka<input id="mFoodBrand"></label><div class="form-grid"><label>kcal/100g<input id="mKcal" type="number"></label><label>Białko<input id="mProtein" type="number" step="0.1"></label><label>Węgle<input id="mCarbs" type="number" step="0.1"></label><label>Tłuszcz<input id="mFat" type="number" step="0.1"></label></div>`);}
 
@@ -259,12 +269,12 @@
   // CALENDAR
   $('#calendarMonth').value=todayISO().slice(0,7);$('#calendarMonth').addEventListener('change',loadCalendar);$('#newEventBtn').addEventListener('click',openEventModal);
   async function loadCalendar(){
-    const month=$('#calendarMonth').value||todayISO().slice(0,7);const [y,m]=month.split('-').map(Number);const start=`${month}-01`;const end=new Date(y,m,0).toISOString().slice(0,10);const ev=await q(db.from('calendar_events').select('*,plans(name)').eq('user_id',state.user.id).gte('event_date',start).lte('event_date',end).order('event_date').order('event_time'),true)||[];
+    const month=$('#calendarMonth').value||todayISO().slice(0,7);const [y,m]=month.split('-').map(Number);const start=`${month}-01`;const end=dateISO(new Date(y,m,0));const ev=await q(db.from('calendar_events').select('*,plans(name)').eq('user_id',state.user.id).gte('event_date',start).lte('event_date',end).order('event_date').order('event_time'),true)||[];
     const first=new Date(y,m-1,1),days=new Date(y,m,0).getDate(),offset=mondayIndex(first)-1;let cells=Array.from({length:offset},()=>'<div></div>');for(let d=1;d<=days;d++){const iso=`${month}-${String(d).padStart(2,'0')}`,has=ev.some(x=>x.event_date===iso);cells.push(`<button class="calendar-cell ${iso===todayISO()?'today':''} ${has?'has-event':''}" onclick="Calis.calendarDay('${iso}')">${d}</button>`);}$('#calendarGrid').innerHTML=cells.join('');renderCalendarEvents(ev);
   }
   function renderCalendarEvents(ev){$('#calendarEvents').innerHTML=ev.length?ev.map(e=>`<div class="card"><div class="row"><div><b>${e.kind==='training'?'🏋️':'📅'} ${esc(e.title)}</b><small class="muted">${e.event_date}${e.event_time?' • '+e.event_time.slice(0,5):''}${e.plans?.name?' • '+esc(e.plans.name):''}</small></div><button class="danger ghost" onclick="Calis.deleteEvent('${e.id}')">✕</button></div></div>`).join(''):'<div class="empty"><p>Brak wpisów w tym miesiącu.</p></div>';}
   function calendarDay(date){openEventModal(date);}
-  function openEventModal(date=todayISO()){openModal('Wpis do kalendarza',async()=>{const repeats=Math.max(1,Math.min(52,+$('#mRepeatWeeks').value||1));const base=new Date($('#mEventDate').value+'T12:00:00');const rows=[];for(let i=0;i<repeats;i++){const d=new Date(base);d.setDate(d.getDate()+i*7);rows.push({user_id:state.user.id,event_date:d.toISOString().slice(0,10),event_time:$('#mEventTime').value||null,kind:$('#mEventKind').value,title:$('#mEventTitle').value.trim()||'Wpis',plan_id:$('#mEventPlan').value||null,notes:$('#mEventNotes').value.trim()});}await q(db.from('calendar_events').insert(rows));await loadCalendar();await loadHome();return true;},`<label>Data<input id="mEventDate" type="date" value="${date}"></label><label>Godzina<input id="mEventTime" type="time"></label><label>Typ<select id="mEventKind"><option value="training">Trening</option><option value="measurement">Pomiar</option><option value="recovery">Regeneracja</option><option value="note">Notatka</option></select></label><label>Tytuł<input id="mEventTitle" placeholder="np. Trening A"></label><label>Plan<select id="mEventPlan"><option value="">—</option>${state.plans.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label>Powtarzaj co tydzień przez<input id="mRepeatWeeks" type="number" min="1" max="52" value="1"></label><label>Notatka<input id="mEventNotes"></label>`);}
+  function openEventModal(date=todayISO()){openModal('Wpis do kalendarza',async()=>{const repeats=Math.max(1,Math.min(52,+$('#mRepeatWeeks').value||1));const base=new Date($('#mEventDate').value+'T12:00:00');const rows=[];for(let i=0;i<repeats;i++){const d=new Date(base);d.setDate(d.getDate()+i*7);rows.push({user_id:state.user.id,event_date:dateISO(d),event_time:$('#mEventTime').value||null,kind:$('#mEventKind').value,title:$('#mEventTitle').value.trim()||'Wpis',plan_id:$('#mEventPlan').value||null,notes:$('#mEventNotes').value.trim()});}await q(db.from('calendar_events').insert(rows));await loadCalendar();await loadHome();return true;},`<label>Data<input id="mEventDate" type="date" value="${date}"></label><label>Godzina<input id="mEventTime" type="time"></label><label>Typ<select id="mEventKind"><option value="training">Trening</option><option value="measurement">Pomiar</option><option value="recovery">Regeneracja</option><option value="note">Notatka</option></select></label><label>Tytuł<input id="mEventTitle" placeholder="np. Trening A"></label><label>Plan<select id="mEventPlan"><option value="">—</option>${state.plans.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label>Powtarzaj co tydzień przez<input id="mRepeatWeeks" type="number" min="1" max="52" value="1"></label><label>Notatka<input id="mEventNotes"></label>`);}
   async function deleteEvent(id){await q(db.from('calendar_events').delete().eq('id',id));loadCalendar();loadHome();}
 
   // RANKING
@@ -285,18 +295,18 @@
       q(db.from('workouts').select('id,started_at,workout_sets(*,exercises(name))').eq('user_id',state.user.id).not('finished_at','is',null).order('started_at',{ascending:false}).limit(50),true)
     ]);
     $('#measurementsList').innerHTML=(meas||[]).map(m=>`<div class="list-row"><div><b>${m.measured_on} • ${m.weight_kg??'—'} kg</b><small>${m.waist_cm?'pas '+m.waist_cm+' cm ':''}${m.chest_cm?'• klatka '+m.chest_cm+' cm':''}</small></div></div>`).join('')||'<p class="muted">Brak pomiarów.</p>';
-    const skillMap=new Map((userSkills||[]).map(x=>[x.skill_id,x])); $('#skillsList').innerHTML=state.skills.map(s=>{const u=skillMap.get(s.id),lv=u?.level||0;return `<div class="skill-row" onclick="Calis.editSkill('${s.id}')"><div class="row"><b>${esc(s.name)}</b><span class="tag">LV ${lv}/${s.max_level}</span></div><div class="skill-bar"><i style="width:${lv/s.max_level*100}%"></i></div></div>`}).join('');
+    state.userSkills=userSkills||[];const skillMap=new Map(state.userSkills.map(x=>[x.skill_id,x])); $('#skillsList').innerHTML=state.skills.map(s=>{const u=skillMap.get(s.id),lv=u?.level||0;return `<div class="skill-row" onclick="Calis.editSkill('${s.id}')"><div class="row"><b>${esc(s.name)}</b><span class="tag">LV ${lv}/${s.max_level}</span></div><div class="skill-bar"><i style="width:${lv/s.max_level*100}%"></i></div></div>`}).join('');
     const prs=new Map();for(const w of workouts||[])for(const s of w.workout_sets||[]){const key=s.exercise_id;const score=num(s.weight_kg)*(1+num(s.reps)/30);const bodyScore=num(s.reps)*100+num(s.weight_kg);const val=num(s.weight_kg)>0?score:bodyScore;if(!prs.has(key)||prs.get(key).val<val)prs.set(key,{val,text:num(s.weight_kg)>0?`${s.weight_kg} kg × ${s.reps||0}`:`${s.reps||0} powt.`,name:s.exercises?.name});}$('#prsList').innerHTML=[...prs.values()].slice(0,30).map(p=>`<div class="list-row"><div><b>${esc(p.name)}</b><small>${p.text}</small></div><span>🏆</span></div>`).join('')||'<p class="muted">Brak rekordów.</p>';
   }
   function openMeasurementModal(){openModal('Nowy pomiar',async()=>{await q(db.from('measurements').insert({user_id:state.user.id,measured_on:$('#mMeasureDate').value,weight_kg:$('#mWeight').value?+$('#mWeight').value:null,waist_cm:$('#mWaist').value?+$('#mWaist').value:null,chest_cm:$('#mChest').value?+$('#mChest').value:null,arm_cm:$('#mArm').value?+$('#mArm').value:null,bodyfat_pct:$('#mBodyfat').value?+$('#mBodyfat').value:null}));await loadProgress();return true;},`<label>Data<input id="mMeasureDate" type="date" value="${todayISO()}"></label><div class="form-grid"><label>Waga kg<input id="mWeight" type="number" step="0.1"></label><label>Pas cm<input id="mWaist" type="number" step="0.1"></label><label>Klatka cm<input id="mChest" type="number" step="0.1"></label><label>Ramię cm<input id="mArm" type="number" step="0.1"></label><label>BF %<input id="mBodyfat" type="number" step="0.1"></label></div>`);}
-  function editSkill(id){const s=state.skills.find(x=>x.id===id);openModal(s.name,async()=>{const level=+$('#mSkillLevel').value;await q(db.from('user_skills').upsert({user_id:state.user.id,skill_id:id,level,updated_at:new Date().toISOString()},{onConflict:'user_id,skill_id'}));await loadProgress();await loadHome();return true;},`<label>Poziom<select id="mSkillLevel">${Array.from({length:s.max_level+1},(_,i)=>`<option value="${i}">${i}/${s.max_level}${i?` — ${esc(s.steps?.[i-1]||'')}`:''}</option>`).join('')}</select></label>`);}
+  function editSkill(id){const s=state.skills.find(x=>x.id===id),current=state.userSkills.find(x=>x.skill_id===id)?.level||0;openModal(s.name,async()=>{const level=+$('#mSkillLevel').value;await q(db.from('user_skills').upsert({user_id:state.user.id,skill_id:id,level,updated_at:new Date().toISOString()},{onConflict:'user_id,skill_id'}));await loadProgress();await loadHome();return true;},`<label>Poziom<select id="mSkillLevel">${Array.from({length:s.max_level+1},(_,i)=>`<option value="${i}" ${i===current?'selected':''}>${i}/${s.max_level}${i?` — ${esc(s.steps?.[i-1]||'')}`:''}</option>`).join('')}</select></label>`);}
 
   // PROFILE
   function renderProfile(){if(!state.profile)return;$('#profileDisplayName').value=state.profile.display_name||'';$('#profileUsername').value=state.profile.username||'';$('#profileHeight').value=state.settings.height_cm||'';$('#profileWeeklyGoal').value=state.settings.weekly_goal||2;$('#profileTargetWeight').value=state.settings.target_weight_kg||'';$('#profilePublic').value=String(state.profile.is_public);}
   $('#saveProfileBtn').addEventListener('click',async()=>{try{const p=await q(db.from('profiles').update({display_name:$('#profileDisplayName').value.trim(),username:$('#profileUsername').value.trim(),is_public:$('#profilePublic').value==='true'}).eq('id',state.user.id).select().single());await q(db.from('user_settings').update({height_cm:$('#profileHeight').value?+$('#profileHeight').value:null,weekly_goal:+$('#profileWeeklyGoal').value||2,target_weight_kg:$('#profileTargetWeight').value?+$('#profileTargetWeight').value:null,updated_at:new Date().toISOString()}).eq('user_id',state.user.id));state.profile=p;state.settings={...state.settings,height_cm:+$('#profileHeight').value||null,weekly_goal:+$('#profileWeeklyGoal').value||2,target_weight_kg:+$('#profileTargetWeight').value||null};$('#profileName').textContent=p.display_name;$('#profileInitial').textContent=p.display_name[0]?.toUpperCase();toast('Profil zapisany');loadHome();}catch{}});
 
   // MODAL
-  function openModal(title,onSave,body){$('#modalTitle').textContent=title;$('#modalBody').innerHTML=body;$('#modalForm').onsubmit=async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();try{const ok=await onSave();if(ok!==false)$('#modal').close();}catch{}};$('#modal').showModal();}
+  function openModal(title,onSave,body){$('#modalTitle').textContent=title;$('#modalBody').innerHTML=body;$('#modalForm').onsubmit=async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();const button=$('#modalSave');button.disabled=true;try{const ok=await onSave();if(ok!==false)$('#modal').close();}catch{}finally{button.disabled=false;}};$('#modal').showModal();}
 
   // REST TIMER
   function startRest(sec){state.restSeconds=sec;clearInterval(state.restTimer);$('#restTimer').classList.remove('hidden');renderRest();state.restTimer=setInterval(()=>{state.restSeconds--;renderRest();if(state.restSeconds<=0){stopRest();if(navigator.vibrate)navigator.vibrate([120,60,120]);}},1000);}
