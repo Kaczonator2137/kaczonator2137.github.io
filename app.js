@@ -15,7 +15,7 @@
 
   const state = {
     user: null, profile: null, settings: null, exercises: [], plans: [], skills: [], leaderboard: [],
-    activeWorkout: null, sessionTicker: null, restTimer: null, restSeconds: 0,
+    activeWorkout: null, sessionTicker: null, restTimer: null, restSeconds: 0, restEndsAt: null, restNotified: false,
     pickerCallback: null, rankMode: 'score', selectedPlanExercises: [], userSkills: [], foodResults: []
   };
 
@@ -90,6 +90,7 @@
       $('#profileName').textContent=profile.display_name; $('#profileInitial').textContent=(profile.display_name||'?')[0].toUpperCase();
       if(seasons?.[0]) $('#headerSeason').textContent=seasons[0].name.toUpperCase();
       try{state.activeWorkout=JSON.parse(localStorage.getItem('calislevel-active-'+uid)||'null');}catch{state.activeWorkout=null;localStorage.removeItem('calislevel-active-'+uid);toast('Usunięto uszkodzony zapis poprzedniego treningu');}
+      restoreRestTimer();
       await Promise.all([loadPlans(),loadHome()]);
       renderWorkout();
       if(state.activeWorkout) startSessionTicker();
@@ -302,17 +303,33 @@
   function editSkill(id){const s=state.skills.find(x=>x.id===id),current=state.userSkills.find(x=>x.skill_id===id)?.level||0;openModal(s.name,async()=>{const level=+$('#mSkillLevel').value;await q(db.from('user_skills').upsert({user_id:state.user.id,skill_id:id,level,updated_at:new Date().toISOString()},{onConflict:'user_id,skill_id'}));await loadProgress();await loadHome();return true;},`<label>Poziom<select id="mSkillLevel">${Array.from({length:s.max_level+1},(_,i)=>`<option value="${i}" ${i===current?'selected':''}>${i}/${s.max_level}${i?` — ${esc(s.steps?.[i-1]||'')}`:''}</option>`).join('')}</select></label>`);}
 
   // PROFILE
-  function renderProfile(){if(!state.profile)return;$('#profileDisplayName').value=state.profile.display_name||'';$('#profileUsername').value=state.profile.username||'';$('#profileHeight').value=state.settings.height_cm||'';$('#profileWeeklyGoal').value=state.settings.weekly_goal||2;$('#profileTargetWeight').value=state.settings.target_weight_kg||'';$('#profilePublic').value=String(state.profile.is_public);}
+  function renderProfile(){if(!state.profile)return;$('#profileDisplayName').value=state.profile.display_name||'';$('#profileUsername').value=state.profile.username||'';$('#profileHeight').value=state.settings.height_cm||'';$('#profileWeeklyGoal').value=state.settings.weekly_goal||2;$('#profileTargetWeight').value=state.settings.target_weight_kg||'';$('#profilePublic').value=String(state.profile.is_public);renderNotificationStatus();}
   $('#saveProfileBtn').addEventListener('click',async()=>{try{const p=await q(db.from('profiles').update({display_name:$('#profileDisplayName').value.trim(),username:$('#profileUsername').value.trim(),is_public:$('#profilePublic').value==='true'}).eq('id',state.user.id).select().single());await q(db.from('user_settings').update({height_cm:$('#profileHeight').value?+$('#profileHeight').value:null,weekly_goal:+$('#profileWeeklyGoal').value||2,target_weight_kg:$('#profileTargetWeight').value?+$('#profileTargetWeight').value:null,updated_at:new Date().toISOString()}).eq('user_id',state.user.id));state.profile=p;state.settings={...state.settings,height_cm:+$('#profileHeight').value||null,weekly_goal:+$('#profileWeeklyGoal').value||2,target_weight_kg:+$('#profileTargetWeight').value||null};$('#profileName').textContent=p.display_name;$('#profileInitial').textContent=p.display_name[0]?.toUpperCase();toast('Profil zapisany');loadHome();}catch{}});
 
   // MODAL
   function openModal(title,onSave,body){$('#modalTitle').textContent=title;$('#modalBody').innerHTML=body;$('#modalForm').onsubmit=async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();const button=$('#modalSave');button.disabled=true;try{const ok=await onSave();if(ok!==false)$('#modal').close();}catch{}finally{button.disabled=false;}};$('#modal').showModal();}
 
   // REST TIMER
-  function startRest(sec){state.restSeconds=sec;clearInterval(state.restTimer);$('#restTimer').classList.remove('hidden');renderRest();state.restTimer=setInterval(()=>{state.restSeconds--;renderRest();if(state.restSeconds<=0){stopRest();if(navigator.vibrate)navigator.vibrate([120,60,120]);}},1000);}
+  const restStorageKey=()=>state.user?'calislevel-rest-'+state.user.id:null;
+  function saveRest(){const key=restStorageKey();if(!key)return;if(state.restEndsAt)localStorage.setItem(key,JSON.stringify({endsAt:state.restEndsAt}));else localStorage.removeItem(key);}
+  function restoreRestTimer(){const key=restStorageKey();if(!key)return;try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(saved?.endsAt){state.restEndsAt=saved.endsAt;state.restNotified=false;if(saved.endsAt>Date.now())runRestTimer();else completeRest();}else localStorage.removeItem(key);}catch{localStorage.removeItem(key);}}
+  function startRest(sec){state.restEndsAt=Date.now()+Math.max(0,+sec||0)*1000;state.restNotified=false;saveRest();runRestTimer();}
+  function runRestTimer(){clearInterval(state.restTimer);$('#restTimer').classList.remove('hidden');tickRest();state.restTimer=setInterval(tickRest,250);}
+  function tickRest(){if(!state.restEndsAt)return;state.restSeconds=Math.max(0,Math.ceil((state.restEndsAt-Date.now())/1000));renderRest();if(state.restSeconds<=0)completeRest();}
   function renderRest(){const s=Math.max(0,state.restSeconds);$('#restValue').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
-  function stopRest(){clearInterval(state.restTimer);$('#restTimer').classList.add('hidden');}
-  $('#restMinus').onclick=()=>{state.restSeconds=Math.max(0,state.restSeconds-15);renderRest();};$('#restPlus').onclick=()=>{state.restSeconds+=15;renderRest();};$('#restClose').onclick=stopRest;
+  function stopRest(){clearInterval(state.restTimer);state.restTimer=null;state.restEndsAt=null;state.restSeconds=0;saveRest();$('#restTimer').classList.add('hidden');}
+  async function completeRest(){if(state.restNotified)return;state.restNotified=true;stopRest();toast('Przerwa zakończona — czas na kolejną serię');playRestSound();if(navigator.vibrate)navigator.vibrate([180,80,180,80,260]);await showNotification();}
+  function playRestSound(){try{const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)return;const ctx=new AudioCtx();[0,0.18,0.36].forEach((delay,i)=>{const oscillator=ctx.createOscillator(),gain=ctx.createGain();oscillator.type='sine';oscillator.frequency.value=i===2?1046:784;gain.gain.setValueAtTime(0.0001,ctx.currentTime+delay);gain.gain.exponentialRampToValueAtTime(0.22,ctx.currentTime+delay+0.015);gain.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+delay+0.15);oscillator.connect(gain).connect(ctx.destination);oscillator.start(ctx.currentTime+delay);oscillator.stop(ctx.currentTime+delay+0.16);});setTimeout(()=>ctx.close(),900);}catch(e){console.debug('Dźwięk niedostępny',e);}}
+  async function showNotification(title='Przerwa zakończona',body='Czas na kolejną serię.',tag='calislevel-rest'){if(!('Notification'in window)||Notification.permission!=='granted'||!('serviceWorker'in navigator))return;try{const reg=await navigator.serviceWorker.ready;await reg.showNotification(title,{body,icon:'./icons/icon-192.png',badge:'./icons/icon-192.png',tag,renotify:true,vibrate:[180,80,180,80,260],silent:false,data:{url:'./'}});}catch(e){console.debug('Powiadomienie niedostępne',e);}}
+  function renderNotificationStatus(){const status=$('#notificationStatus'),button=$('#enableNotificationsBtn');if(!status||!button)return;if(!('Notification'in window)){status.textContent='Powiadomienia nie są obsługiwane na tym urządzeniu.';button.classList.add('hidden');return;}const installed=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;if(Notification.permission==='granted'){status.textContent='Powiadomienia są włączone.';button.textContent='Test';}else if(Notification.permission==='denied'){status.textContent='Powiadomienia są zablokowane w ustawieniach telefonu.';button.textContent='Zablokowane';button.disabled=true;}else{status.textContent=installed?'Włącz alert po zakończeniu przerwy.':'Najpierw dodaj aplikację do ekranu początkowego.';button.textContent='Włącz';button.disabled=!installed;}}
+  async function enableNotifications(){if(!('Notification'in window))return;try{if(Notification.permission==='default')await Notification.requestPermission();renderNotificationStatus();if(Notification.permission==='granted'){await showNotification('Powiadomienia włączone','Damy znać, gdy przerwa się zakończy.','calislevel-test');toast('Powiadomienia są włączone');}}catch{toast('Nie udało się włączyć powiadomień');}}
+  $('#enableNotificationsBtn').onclick=enableNotifications;
+  $('#restMinus').onclick=()=>{if(!state.restEndsAt)return;state.restEndsAt=Math.max(Date.now(),state.restEndsAt-15000);saveRest();tickRest();};
+  $('#restPlus').onclick=()=>{state.restEndsAt=(state.restEndsAt||Date.now())+15000;state.restNotified=false;saveRest();runRestTimer();};
+  $('#restClose').onclick=stopRest;
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.restEndsAt)tickRest();});
+  window.addEventListener('pageshow',()=>{if(state.restEndsAt)tickRest();});
+  window.addEventListener('focus',()=>{if(state.restEndsAt)tickRest();});
 
   // Global functions for inline event handlers
   window.Calis={startPlan,editPlan:id=>openPlanEditor(state.plans.find(p=>p.id===id)),deletePlan,addPlanExercise,removePlanItem:i=>{state.selectedPlanExercises.splice(i,1);renderPlanModalItems();renderPlanExerciseList();},planField:(i,k,v)=>state.selectedPlanExercises[i][k]=v,setVal,doneSet,addSet,startRest,setExerciseCategory,pickExercise,addFood,deleteMeal,toggleSupplement,deleteSupplement,calendarDay,deleteEvent,editSkill};
