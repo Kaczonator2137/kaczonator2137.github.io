@@ -6,7 +6,7 @@ Darmowa PWA do treningu, kalisteniki, odżywiania, suplementacji i rywalizacji z
 - **Konta i synchronizacja** — Supabase Auth + PostgreSQL.
 - **Trening** — plany własne, aktywna sesja, serie, kg, powtórzenia, RPE, timer przerw.
 - **3 plany Calis Athletic** — opcjonalny starter pod atletyczną/kalisteniczną sylwetkę.
-- **Ćwiczenia** — 387 pozycji startowych oraz dowolne własne ćwiczenia.
+- **Ćwiczenia** — 489 pozycji po zastosowaniu najnowszej migracji oraz dowolne własne ćwiczenia.
 - **Ranking** — CalisScore, sezon, lifetime XP, streak.
 - **Dieta** — Mifflin-St Jeor, TDEE, cel masa/utrzymanie/redukcja, makro, dziennik jedzenia.
 - **Suplementy** — nazwa, dawka, jednostka, dni, godzina, checklista.
