@@ -144,6 +144,13 @@
 
 <dialog id="modal" class="modal"><form method="dialog" id="modalForm"><div class="modal-head"><h3 id="modalTitle">Formularz</h3><button value="cancel" class="icon">✕</button></div><div id="modalBody"></div><button id="modalSave" value="default" class="primary full">Zapisz</button></form></dialog>
 <dialog id="pickerModal" class="modal"><form method="dialog"><div class="modal-head"><h3>Wybierz ćwiczenie</h3><button value="cancel" class="icon">✕</button></div><input id="pickerSearch" placeholder="Szukaj ćwiczenia…"><div id="pickerResults" class="list"></div></form></dialog>
+<dialog id="notificationPrompt" class="modal">
+  <div class="notification-bell">🔔</div>
+  <h2 id="notificationPromptTitle">Włącz powiadomienia</h2>
+  <p id="notificationPromptText" class="muted">Dostaniesz alert z dźwiękiem, gdy przerwa między seriami się zakończy — także po przełączeniu na inną aplikację.</p>
+  <button id="notificationPromptEnable" class="primary full">Włącz powiadomienia</button>
+  <button id="notificationPromptLater" class="secondary full">Może później</button>
+</dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
